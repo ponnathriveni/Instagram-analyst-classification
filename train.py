@@ -1,80 +1,75 @@
-# Generated from: train.ipynb
-# Converted at: 2026-05-16T17:58:36.500Z
-# Next step (optional): refactor into modules & generate tests with RunCell
-# Quick start: pip install runcell
-
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-import pickle
+import joblib   # ✅ use joblib instead of pickle
 
-
+# Load dataset
 df = pd.read_csv("instagram_analytics.csv")
-df
 
-df.shape
-
-df.info()
-
-df.head()
-
-df.tail()
+# Drop unnecessary columns
+df = df.drop(columns=[
+    'post_id',
+    'account_id',
+    'post_datetime',
+    'post_date',
+    'traffic_source',
+    'day_of_week'
+])
 
 df = df.dropna()
+df = df.fillna(0)
 
-print(df.isnull().sum())
-
+# Target column
 target_column = "performance_bucket_label"
-target_column
 
-print(df.columns)
-
+# Encode target
 label_encoder = LabelEncoder()
 df[target_column] = label_encoder.fit_transform(df[target_column])
 
-
-with open("label_encoder.pkl", "wb") as f:
-    pickle.dump(label_encoder, f)
-
+# Split features/target
 X = df.drop(target_column, axis=1)
 y = df[target_column]
 
-categorical_cols = X.select_dtypes(include=['object']).columns
+feature_names = X.columns.tolist()
+
+# Encode categorical columns
+categorical_cols = ['account_type', 'media_type', 'content_category']
 encoders = {}
+
 for col in categorical_cols:
     le = LabelEncoder()
     X[col] = le.fit_transform(X[col].astype(str))
     encoders[col] = le
 
-
-with open("encoders.pkl", "wb") as f:
-    pickle.dump(encoders, f)
-
-
-
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
+# Model
 model = RandomForestClassifier(
-    n_estimators=100,
+    n_estimators=200,
     random_state=42
 )
 
 model.fit(X_train, y_train)
 
-
+# Evaluation
 y_pred = model.predict(X_test)
-y_pred
-
 accuracy = accuracy_score(y_test, y_pred)
+
 print("Accuracy:", accuracy)
 
+bundle = {
+    "model": model,
+    "label_encoder": label_encoder,
+    "encoders": encoders,
+    "feature_names": feature_names
+}
 
-with open("model.pkl", "wb") as f:
-    pickle.dump(model, f)
+joblib.dump(bundle, "bundle.pkl", compress=3)
 
-print("Model saved successfully")
+print("All objects saved in bundle.pkl successfully")
